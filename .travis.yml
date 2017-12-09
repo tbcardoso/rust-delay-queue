@@ -1,0 +1,15 @@
+language: rust
+sudo: false
+
+rust:
+  - stable
+  - beta
+  - nightly
+  - 1.21.0 # Oldest supported version of Rust
+
+matrix:
+  fast_finish: true
+  allow_failures:
+    - rust: nightly
+
+cache: cargo
