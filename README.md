@@ -1,6 +1,7 @@
 # DelayQueue for Rust
 
 [![Build Status](https://travis-ci.org/tbcardoso/rust-delay-queue.svg?branch=master)](https://travis-ci.org/tbcardoso/rust-delay-queue)
+[![Build status](https://ci.appveyor.com/api/projects/status/7kehrfkbojgaiwyd/branch/master?svg=true)](https://ci.appveyor.com/project/tbcardoso/rust-delay-queue/branch/master)
 [![Crates.io](https://img.shields.io/crates/v/delay-queue.svg)](https://crates.io/crates/delay-queue)
 [![docs.rs](https://docs.rs/delay-queue/badge.svg)](https://docs.rs/delay-queue/)
 
