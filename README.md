@@ -1,5 +1,8 @@
 # DelayQueue for Rust
 
+[![Crates.io](https://img.shields.io/crates/v/delay-queue.svg)](https://crates.io/crates/delay-queue)
+[![docs.rs](https://docs.rs/delay-queue/badge.svg)](https://docs.rs/delay-queue/)
+
 A concurrent unbounded blocking queue where each element can only be removed when its delay expires.
 
 ## Example
