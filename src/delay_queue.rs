@@ -82,6 +82,7 @@ impl<T: Delayed> DelayQueue<T> {
         let mut queue = self.shared_data.queue.lock().unwrap();
 
         {
+            // If the new item goes to the head of the queue then notify consumers
             let cur_head = queue.peek();
             if (cur_head == None)
                 || (item.delayed_until() < cur_head.unwrap().delayed.delayed_until())
@@ -119,6 +120,7 @@ impl<T: Delayed> DelayQueue<T> {
     pub fn pop(&mut self) -> T {
         let mut queue = self.shared_data.queue.lock().unwrap();
 
+        // Loop until an element can be popped, waiting if necessary
         loop {
             let now = Instant::now();
 
@@ -128,6 +130,8 @@ impl<T: Delayed> DelayQueue<T> {
                 None => Duration::from_secs(0),
             };
 
+            // Wait until there is a new head of the queue
+            // or the time to pop the current head expires
             queue = if wait_duration > Duration::from_secs(0) {
                 self.shared_data
                     .condvar_new_head
@@ -200,12 +204,18 @@ impl<T: Delayed> DelayQueue<T> {
     pub fn try_pop_until(&mut self, try_until: Instant) -> Option<T> {
         let mut queue = self.shared_data.queue.lock().unwrap();
 
+        // Loop until an element can be popped or the timeout expires, waiting if necessary
         loop {
             let now = Instant::now();
 
             let next_elem_duration = match queue.peek() {
+                // If there is an element and its delay is expired, break out of the loop to pop it
                 Some(elem) if elem.delayed.delayed_until() <= now => break,
+
+                // Calculate the Duration until the element expires
                 Some(elem) => elem.delayed.delayed_until() - now,
+
+                // Signal that there is no element with a duration of zero
                 None => Duration::from_secs(0),
             };
 
@@ -216,11 +226,17 @@ impl<T: Delayed> DelayQueue<T> {
             let time_left = try_until - now;
 
             let wait_duration = if next_elem_duration > Duration::from_secs(0) {
+                // We'll wait until the time to pop the next element is reached
+                // or our timeout expires, whichever comes first
                 next_elem_duration.min(time_left)
             } else {
+                // There is no element in the queue, we'll wait for one until our timeout expires
                 time_left
             };
 
+            // Wait until there is a new head of the queue,
+            // the time to pop the current head expires,
+            // or the timeout expires
             queue = self.shared_data
                 .condvar_new_head
                 .wait_timeout(queue, wait_duration)
@@ -273,7 +289,7 @@ impl<T: Delayed> DelayQueue<T> {
 impl<T: Delayed> Clone for DelayQueue<T> {
     /// Returns a new `DelayQueue` that points to the same underlying data.
     ///
-    /// This is needed to share a queue between different threads.
+    /// This method can be used to share a queue between different threads.
     ///
     /// # Examples
     ///
