@@ -1,5 +1,5 @@
 use std::collections::BinaryHeap;
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 use std::cmp::Ordering;
 use delayed::Delayed;
@@ -139,11 +139,96 @@ impl<T: Delayed> DelayQueue<T> {
             };
         }
 
-        if queue.len() > 1 {
-            self.shared_data.condvar_new_head.notify_one();
+        self.force_pop(queue)
+    }
+
+    /// Pops the next item from the queue, blocking if necessary until an item is available and its
+    /// delay has expired or until the given timeout expires.
+    ///
+    /// Returns `None` if the given timeout expires and no item became available to be popped.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```no_run
+    /// use delay_queue::{Delay, DelayQueue};
+    /// use std::time::Duration;
+    ///
+    /// let mut queue = DelayQueue::new();
+    ///
+    /// queue.push(Delay::for_duration("1st", Duration::from_secs(5)));
+    ///
+    /// // The pop will block for approximately 2 seconds before returning None.
+    /// println!("First pop: {:?}",
+    ///          queue.try_pop_for(Duration::from_secs(2))); // Prints "None"
+    ///
+    /// // The pop will block for approximately 3 seconds before returning the item.
+    /// println!("Second pop: {}",
+    ///          queue.try_pop_for(Duration::from_secs(5)).unwrap().value); // Prints "1st"
+    /// ```
+    pub fn try_pop_for(&mut self, timeout: Duration) -> Option<T> {
+        self.try_pop_until(Instant::now() + timeout)
+    }
+
+    /// Pops the next item from the queue, blocking if necessary until an item is available and its
+    /// delay has expired or until the given `Instant` is reached.
+    ///
+    /// Returns `None` if the given `Instant` is reached and no item became available to be popped.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```no_run
+    /// use delay_queue::{Delay, DelayQueue};
+    /// use std::time::{Duration, Instant};
+    ///
+    /// let mut queue = DelayQueue::new();
+    ///
+    /// queue.push(Delay::for_duration("1st", Duration::from_secs(5)));
+    ///
+    /// // The pop will block for approximately 2 seconds before returning None.
+    /// println!("First pop: {:?}",
+    ///          queue.try_pop_until(Instant::now() + Duration::from_secs(2))); // Prints "None"
+    ///
+    /// // The pop will block for approximately 3 seconds before returning the item.
+    /// println!("Second pop: {}",
+    ///          queue.try_pop_until(Instant::now() + Duration::from_secs(5))
+    ///               .unwrap().value); // Prints "1st"
+    /// ```
+    pub fn try_pop_until(&mut self, try_until: Instant) -> Option<T> {
+        let mut queue = self.shared_data.queue.lock().unwrap();
+
+        loop {
+            let now = Instant::now();
+
+            let next_elem_duration = match queue.peek() {
+                Some(elem) if elem.delayed.delayed_until() <= now => break,
+                Some(elem) => elem.delayed.delayed_until() - now,
+                None => Duration::from_secs(0),
+            };
+
+            if now + next_elem_duration >= try_until {
+                return None;
+            }
+
+            let time_left = try_until - now;
+
+            let wait_duration = if next_elem_duration > Duration::from_secs(0) {
+                next_elem_duration.min(time_left)
+            } else {
+                time_left
+            };
+
+            queue = self.shared_data
+                .condvar_new_head
+                .wait_timeout(queue, wait_duration)
+                .unwrap()
+                .0
         }
 
-        queue.pop().unwrap().delayed
+        Some(self.force_pop(queue))
     }
 
     /// Checks if the queue is empty.
@@ -168,6 +253,20 @@ impl<T: Delayed> DelayQueue<T> {
     pub fn is_empty(&self) -> bool {
         let queue = self.shared_data.queue.lock().unwrap();
         queue.is_empty()
+    }
+
+    /// Pops an element from the queue, notifying `condvar_new_head` if there are elements still
+    /// left in the queue.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `queue` is empty.
+    fn force_pop(&self, mut queue: MutexGuard<BinaryHeap<Entry<T>>>) -> T {
+        if queue.len() > 1 {
+            self.shared_data.condvar_new_head.notify_one();
+        }
+
+        queue.pop().unwrap().delayed
     }
 }
 
@@ -438,6 +537,108 @@ mod tests {
                 handle.join().unwrap();
 
                 assert!(queue.is_empty());
+            },
+            1000,
+        );
+    }
+
+    #[test]
+    fn try_pop_until_now() {
+        timeout_ms(
+            || {
+                let mut queue = DelayQueue::new();
+
+                let delay1 = Delay::until_instant("1st", Instant::now());
+                let delay2 = Delay::for_duration("2nd", Duration::from_millis(500));
+
+                queue.push(delay1);
+                queue.push(delay2);
+
+                assert_eq!(queue.try_pop_until(Instant::now()).unwrap().value, "1st");
+                assert_eq!(queue.try_pop_until(Instant::now()), None);
+
+                assert!(!queue.is_empty());
+            },
+            1000,
+        );
+    }
+
+    #[test]
+    fn try_pop_for_zero_duration() {
+        timeout_ms(
+            || {
+                let mut queue = DelayQueue::new();
+
+                let delay1 = Delay::until_instant("1st", Instant::now());
+                let delay2 = Delay::for_duration("2nd", Duration::from_millis(500));
+
+                queue.push(delay1);
+                queue.push(delay2);
+
+                assert_eq!(
+                    queue.try_pop_for(Duration::from_millis(0)).unwrap().value,
+                    "1st"
+                );
+                assert_eq!(queue.try_pop_for(Duration::from_millis(0)), None);
+
+                assert!(!queue.is_empty());
+            },
+            1000,
+        );
+    }
+
+    #[test]
+    fn try_pop_until() {
+        timeout_ms(
+            || {
+                let mut queue = DelayQueue::new();
+
+                let delay1 = Delay::for_duration("1st", Duration::from_millis(100));
+
+                queue.push(delay1);
+
+                assert_eq!(
+                    queue.try_pop_until(Instant::now() + Duration::from_millis(10)),
+                    None
+                );
+                assert_eq!(
+                    queue
+                        .try_pop_until(Instant::now() + Duration::from_millis(200))
+                        .unwrap()
+                        .value,
+                    "1st"
+                );
+
+                assert!(queue.is_empty());
+
+                assert_eq!(
+                    queue.try_pop_until(Instant::now() + Duration::from_millis(10)),
+                    None
+                );
+            },
+            1000,
+        );
+    }
+
+    #[test]
+    fn try_pop_for() {
+        timeout_ms(
+            || {
+                let mut queue = DelayQueue::new();
+
+                let delay1 = Delay::for_duration("1st", Duration::from_millis(100));
+
+                queue.push(delay1);
+
+                assert_eq!(queue.try_pop_for(Duration::from_millis(10)), None);
+                assert_eq!(
+                    queue.try_pop_for(Duration::from_millis(200)).unwrap().value,
+                    "1st"
+                );
+
+                assert!(queue.is_empty());
+
+                assert_eq!(queue.try_pop_for(Duration::from_millis(10)), None);
             },
             1000,
         );
