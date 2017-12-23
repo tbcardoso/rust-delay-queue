@@ -32,6 +32,7 @@ use delayed::Delayed;
 /// println!("Second pop: {}", queue.pop().value);
 /// assert!(queue.is_empty());
 /// ```
+#[derive(Debug)]
 pub struct DelayQueue<T: Delayed> {
     /// Points to the data that is shared between instances of the same queue (created by
     /// cloning a queue). Usually the different instances of a queue will live in different
@@ -43,6 +44,7 @@ pub struct DelayQueue<T: Delayed> {
 ///
 /// When a `DelayQueue` is cloned, it's clone will point to the same `DelayQueueSharedData`.
 /// This is done so a queue be used by different threads.
+#[derive(Debug)]
 struct DelayQueueSharedData<T: Delayed> {
     /// Mutex protected `BinaryHeap` that holds the items of the queue in the order that they
     /// should be popped.
