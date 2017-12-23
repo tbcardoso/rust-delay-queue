@@ -22,7 +22,7 @@ fn main() {
         producer_queue.push(Delay::for_duration("3s", Duration::from_secs(3)));
 
         // This item can be popped immediately
-        producer_queue.push(Delay::until_instant("1s", Instant::now()));
+        producer_queue.push(Delay::until_instant("now", Instant::now()));
     });
 
     consumer_handle.join().unwrap();
