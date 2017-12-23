@@ -147,6 +147,24 @@ impl<T: Delayed> DelayQueue<T> {
     }
 
     /// Checks if the queue is empty.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use delay_queue::{Delay, DelayQueue};
+    /// use std::time::Instant;
+    ///
+    /// let mut queue = DelayQueue::new();
+    /// queue.push(Delay::until_instant("val", Instant::now()));
+    ///
+    /// assert!(!queue.is_empty());
+    ///
+    /// println!("First pop: {}", queue.pop().value);
+    ///
+    /// assert!(queue.is_empty());
+    /// ```
     pub fn is_empty(&self) -> bool {
         let queue = self.shared_data.queue.lock().unwrap();
         queue.is_empty()
