@@ -227,7 +227,7 @@ impl<T: Delayed> DelayQueue<T> {
                 None => Duration::from_secs(0),
             };
 
-            if now + next_elem_duration >= try_until {
+            if now >= try_until {
                 return None;
             }
 
@@ -663,6 +663,39 @@ mod tests {
                 assert!(queue.is_empty());
 
                 assert_eq!(queue.try_pop_for(Duration::from_millis(10)), None);
+            },
+            1000,
+        );
+    }
+
+    #[test]
+    fn push_higher_priority_while_waiting_to_try_pop() {
+        timeout_ms(
+            || {
+                let mut queue = DelayQueue::new();
+
+                let delay1 = Delay::until_instant("1st", Instant::now());
+                let delay2 = Delay::for_duration("2nd", Duration::from_millis(1000));
+
+                queue.push(delay2);
+
+                let mut cloned_queue = queue.clone();
+
+                let handle = thread::spawn(move || {
+                    assert_eq!(
+                        cloned_queue
+                            .try_pop_for(Duration::from_millis(100))
+                            .unwrap()
+                            .value,
+                        "1st"
+                    );
+                    assert!(!cloned_queue.is_empty());
+                });
+
+                thread::sleep(Duration::from_millis(20));
+                queue.push(delay1);
+
+                handle.join().unwrap();
             },
             1000,
         );
