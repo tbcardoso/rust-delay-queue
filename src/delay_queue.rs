@@ -56,10 +56,43 @@ struct DelayQueueSharedData<T: Delayed> {
 
 impl<T: Delayed> DelayQueue<T> {
     /// Creates an empty `DelayQueue<T>`.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use delay_queue::{Delay, DelayQueue};
+    ///
+    /// let mut queue : DelayQueue<Delay<i32>>  = DelayQueue::new();
+    /// ```
     pub fn new() -> DelayQueue<T> {
         DelayQueue {
             shared_data: Arc::new(DelayQueueSharedData {
                 queue: Mutex::new(BinaryHeap::new()),
+                condvar_new_head: Condvar::new(),
+            }),
+        }
+    }
+
+    /// Creates an empty `DelayQueue<T>` with a specific capacity.
+    /// This preallocates enough memory for `capacity` elements,
+    /// so that the `DelayQueue` does not have to be reallocated
+    /// until it contains at least that many values.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use delay_queue::{Delay, DelayQueue};
+    ///
+    /// let mut queue : DelayQueue<Delay<&str>>  = DelayQueue::with_capacity(10);
+    /// ```
+    pub fn with_capacity(capacity: usize) -> DelayQueue<T> {
+        DelayQueue {
+            shared_data: Arc::new(DelayQueueSharedData {
+                queue: Mutex::new(BinaryHeap::with_capacity(capacity)),
                 condvar_new_head: Condvar::new(),
             }),
         }
