@@ -122,11 +122,19 @@ impl<T: Delayed> DelayQueue<T> {
 
         // Loop until an element can be popped, waiting if necessary
         loop {
-            let now = Instant::now();
-
             let wait_duration = match queue.peek() {
-                Some(elem) if elem.delayed.delayed_until() <= now => break,
-                Some(elem) => elem.delayed.delayed_until() - now,
+                Some(elem) => {
+                    let now = Instant::now();
+                    // If there is an element and its delay is expired
+                    // break out of the loop to pop it
+                    if elem.delayed.delayed_until() <= now {
+                        break;
+                    }
+                    // Otherwise, calculate the Duration until the element expires
+                    elem.delayed.delayed_until() - now
+                }
+
+                // Signal that there is no element with a duration of zero
                 None => Duration::from_secs(0),
             };
 
