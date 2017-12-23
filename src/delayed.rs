@@ -79,6 +79,15 @@ impl<T> Delayed for Delay<T> {
     }
 }
 
+impl<T: Default> Default for Delay<T> {
+    fn default() -> Delay<T> {
+        Delay {
+            value: Default::default(),
+            until: Instant::now(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::time::{Duration, Instant};
