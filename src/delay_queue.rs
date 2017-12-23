@@ -276,69 +276,84 @@ mod tests {
 
     #[test]
     fn is_empty() {
-        let mut queue = DelayQueue::new();
+        timeout_ms(
+            || {
+                let mut queue = DelayQueue::new();
 
-        assert!(queue.is_empty());
+                assert!(queue.is_empty());
 
-        queue.push(Delay::until_instant("1st", Instant::now()));
+                queue.push(Delay::until_instant("1st", Instant::now()));
 
-        assert!(!queue.is_empty());
-        assert_eq!(queue.pop().value, "1st");
-        assert!(queue.is_empty());
+                assert!(!queue.is_empty());
+                assert_eq!(queue.pop().value, "1st");
+                assert!(queue.is_empty());
+            },
+            1000,
+        );
     }
 
     #[test]
     fn push_pop_single_thread() {
-        let mut queue = DelayQueue::new();
+        timeout_ms(
+            || {
+                let mut queue = DelayQueue::new();
 
-        let delay1 = Delay::until_instant("1st", Instant::now());
-        let delay2 = Delay::for_duration("2nd", Duration::from_millis(20));
-        let delay3 = Delay::for_duration("3rd", Duration::from_millis(30));
-        let delay4 = Delay::for_duration("4th", Duration::from_millis(40));
+                let delay1 = Delay::until_instant("1st", Instant::now());
+                let delay2 = Delay::for_duration("2nd", Duration::from_millis(20));
+                let delay3 = Delay::for_duration("3rd", Duration::from_millis(30));
+                let delay4 = Delay::for_duration("4th", Duration::from_millis(40));
 
-        queue.push(delay2);
-        queue.push(delay4);
-        queue.push(delay1);
+                queue.push(delay2);
+                queue.push(delay4);
+                queue.push(delay1);
 
-        assert_eq!(queue.pop().value, "1st");
-        assert_eq!(queue.pop().value, "2nd");
+                assert_eq!(queue.pop().value, "1st");
+                assert_eq!(queue.pop().value, "2nd");
 
-        queue.push(delay3);
+                queue.push(delay3);
 
-        assert_eq!(queue.pop().value, "3rd");
-        assert_eq!(queue.pop().value, "4th");
+                assert_eq!(queue.pop().value, "3rd");
+                assert_eq!(queue.pop().value, "4th");
 
-        assert!(queue.is_empty());
+                assert!(queue.is_empty());
+            },
+            1000,
+        );
     }
 
     #[test]
     fn push_pop_different_thread() {
-        let mut queue = DelayQueue::new();
+        timeout_ms(
+            || {
+                let mut queue = DelayQueue::new();
 
-        let delay1 = Delay::until_instant("1st", Instant::now());
-        let delay2 = Delay::for_duration("2nd", Duration::from_millis(20));
-        let delay3 = Delay::for_duration("3rd", Duration::from_millis(30));
-        let delay4 = Delay::for_duration("4th", Duration::from_millis(40));
+                let delay1 = Delay::until_instant("1st", Instant::now());
+                let delay2 = Delay::for_duration("2nd", Duration::from_millis(20));
+                let delay3 = Delay::for_duration("3rd", Duration::from_millis(30));
+                let delay4 = Delay::for_duration("4th", Duration::from_millis(40));
 
-        queue.push(delay2);
-        queue.push(delay3);
-        queue.push(delay1);
+                queue.push(delay2);
+                queue.push(delay3);
+                queue.push(delay1);
 
-        let mut cloned_queue = queue.clone();
+                let mut cloned_queue = queue.clone();
 
-        let handle = thread::spawn(move || {
-            assert_eq!(cloned_queue.pop().value, "1st");
-            assert_eq!(cloned_queue.pop().value, "2nd");
-            assert_eq!(cloned_queue.pop().value, "3rd");
-            assert_eq!(cloned_queue.pop().value, "4th");
-            assert!(cloned_queue.is_empty());
-        });
+                let handle = thread::spawn(move || {
+                    assert_eq!(cloned_queue.pop().value, "1st");
+                    assert_eq!(cloned_queue.pop().value, "2nd");
+                    assert_eq!(cloned_queue.pop().value, "3rd");
+                    assert_eq!(cloned_queue.pop().value, "4th");
+                    assert!(cloned_queue.is_empty());
+                });
 
-        queue.push(delay4);
+                queue.push(delay4);
 
-        handle.join().unwrap();
+                handle.join().unwrap();
 
-        assert!(queue.is_empty());
+                assert!(queue.is_empty());
+            },
+            1000,
+        );
     }
 
     #[test]
