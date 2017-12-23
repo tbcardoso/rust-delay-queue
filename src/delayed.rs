@@ -39,7 +39,7 @@ pub struct Delay<T> {
 }
 
 impl<T> Delay<T> {
-    /// Creates a new `Delay` holding `value` and that is delayed until the given `Instant`.
+    /// Creates a new `Delay<T>` holding `value` and that is delayed until the given `Instant`.
     ///
     /// # Examples
     ///
@@ -55,7 +55,7 @@ impl<T> Delay<T> {
         Delay { value, until }
     }
 
-    /// Creates a new `Delay` holding `value` and that is delayed until the given `Duration` has
+    /// Creates a new `Delay<T>` holding `value` and that is delayed until the given `Duration` has
     /// elapsed.
     ///
     /// # Examples
@@ -80,6 +80,7 @@ impl<T> Delayed for Delay<T> {
 }
 
 impl<T: Default> Default for Delay<T> {
+    /// Creates an expired `Delay<T>` with a default `value`.
     fn default() -> Delay<T> {
         Delay {
             value: Default::default(),
