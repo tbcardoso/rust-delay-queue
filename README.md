@@ -23,8 +23,8 @@ fn main() {
     let mut consumer_queue = queue.clone();
     let consumer_handle = thread::spawn(move || {
         // The pop() will block until an item is available and its delay has expired
-        println!("First pop: {}", consumer_queue.pop().value);
-        println!("Second pop: {}", consumer_queue.pop().value);
+        println!("First pop: {}", consumer_queue.pop().value); // Prints "First pop: now"
+        println!("Second pop: {}", consumer_queue.pop().value); // Prints "Second pop: 3s"
     });
 
     // Clone the queue and move it to the producer thread
