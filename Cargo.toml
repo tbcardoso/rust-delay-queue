@@ -9,6 +9,10 @@ readme = "README.md"
 keywords = ["concurrency", "delay", "queue", "wait", "schedule"]
 categories = ["concurrency"]
 
+[badges]
+travis-ci = { repository = "tbcardoso/rust-delay-queue" }
+appveyor = { repository = "tbcardoso/rust-delay-queue" }
+
 [dependencies]
 
 [dev-dependencies]
